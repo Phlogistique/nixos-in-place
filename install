@@ -15,7 +15,7 @@ check_existence "chroot"
 check_existence "wget"
 check_existence "sed"
 check_existence "grep"
-check_existence "unsquashfs"
+check_existence "7z"
 check_existence "mktemp"
 check_existence "id"
 log_end "seems sane"
@@ -115,10 +115,10 @@ pushd $working_directory
   wget -c http://nixos.org/releases/nixos/$iso
 
   log "Extracting ISO"
-  modprobe loop
-  mount -o loop $iso mnt
-    unsquashfs -d host/nix/store mnt/nix-store.squashfs '*'
-  umount mnt
+  7z x $iso -omnt -y
+  mv mnt/boot/initrd{,.gz}
+  gunzip mnt/boot/initrd.gz
+  7z x mnt/boot/initrd -ohost -y
   rm -rf ./mnt
 
   ## Save one space
