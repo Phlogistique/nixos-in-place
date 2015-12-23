@@ -9,7 +9,7 @@ grub_device=$4
 digitalocean=$5
 
 ## Bring in some helper functions
-. "$here/util"
+. "$here/util.bash"
 
 ## Enable networking
 log "Setting up chroot networking"

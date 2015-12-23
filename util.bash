@@ -1,7 +1,3 @@
-#!/bin/sh
-
-set -eu
-
 check_existence()
 {
   set +e
