@@ -130,8 +130,12 @@ fi
 
     log "Extracting ISO"
     (
-      modprobe loop
-      mount_with_cleanup -o loop "$iso" mnt
+      modprobe loop &&
+      mount_with_cleanup -o loop "$iso" mnt ||
+      {
+        check_existence "bsdtar"
+        bsdtar -x -f "$iso" -C mnt
+      }
       unsquashfs -d host/nix/store mnt/nix-store.squashfs '*'
     )
   )
