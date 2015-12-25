@@ -24,7 +24,7 @@ log_end "seems sane"
 root_mount=$(mount | grep "/ " | sed 's/ /\n/' | head -n1)
 root_type=$(mount | grep -Eo "/ type \w+" | sed 's/ /\n/g' | tail -n1)
 grub_device=$(echo $root_mount | sed "s|[0-9]\+||")
-working_directory=$(mktemp -d)
+working_directory=
 
 ## Try to work out which architecture to use
 set +e
@@ -72,6 +72,13 @@ while getopts ":g:r:t:Gdw:h" opt; do
   esac
 done
 
+if [ -z "$working_directory" ]; then
+  working_directory=$(mktemp -d)
+elif ! [ -d "$working_directory" ]; then
+  mkdir "$working_directory"
+fi
+on_exit rmdir "$working_directory"
+
 if [ "$(id -u)" != "0" ]; then
   log "You need to be root to do this"
   exit 1
@@ -108,29 +115,31 @@ then
   exit 1
 fi
 
-pushd "$working_directory"
+(
+  cd "$working_directory"
   log "Downloading NixOS $iso"
-  mkdir -p mnt host/nix
+  on_exit rm -rf host
+  mkdir -p host/nix
 
-  wget -c http://nixos.org/releases/nixos/$iso
+  (
+    on_exit rmdir mnt
+    mkdir mnt
 
-  log "Extracting ISO"
-  modprobe loop
-  mount -o loop $iso mnt
-    unsquashfs -d host/nix/store mnt/nix-store.squashfs '*'
-  umount mnt
-  rm -rf ./mnt
+    on_exit rm -f "$iso"
+    wget -c http://nixos.org/releases/nixos/$iso
 
-  ## Save one space
-  rm -f ./$iso
+    log "Extracting ISO"
+    (
+      modprobe loop
+      mount_with_cleanup -o loop "$iso" mnt
+      unsquashfs -d host/nix/store mnt/nix-store.squashfs '*'
+    )
+  )
 
   ## Setup the chroot environment before install
   log "Embarking stage1!"
   "$here/stage1" "$here" "$root_mount" "$root_type" "$grub_device" "$digitalocean"
-
-  ## Minimize residual space usage
-  rm -rf ./host
-popd
+)
 
 ## Installation is complete
 log_start "Reboot into NixOS now? [yn] "

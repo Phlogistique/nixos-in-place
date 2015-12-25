@@ -16,7 +16,7 @@ log "Setting up chroot networking"
 cd host
 mkdir -p etc dev proc sys
 cp /etc/resolv.conf etc/external-resolv.conf
-for fn in dev proc sys; do mount --bind "/$fn" "$fn"; done
+for fn in dev proc sys; do mount_with_cleanup --bind "/$fn" "$fn"; done
 
 ## Patch the ISO for local chroot
 log_start "Looking for NixOS init... "
@@ -36,21 +36,15 @@ sed -i "s|mount -n -o remount,rw none /|echo 'not remounting /'|" "$INIT"
 
 ## The chroot will install outside of itself, into the main system
 log "Binding remaining environment"
+on_exit rmdir nixos
 mkdir -p /nixos nixos
-mount --bind /nixos nixos
+mount_with_cleanup --bind /nixos nixos
 
 ## Allow stage2 to access these scripts
+on_exit rmdir nixos-in-place
 mkdir -p nixos-in-place
-mount --bind "$here" nixos-in-place
+mount_with_cleanup --bind "$here" nixos-in-place
 
 ## Imbue the modified live CD environment so we can install
 log "Embarking stage2!"
 chroot . "/$INIT"
-
-## Various platforms use different flags; just try what we can to clean up
-log "Cleaning up mounts"
-umount -fR nixos >/dev/null 2>&1 || true
-umount -f nixos >/dev/null 2>&1 || true
-umount -f nixos-in-place >/dev/null 2>&1 || true
-umount -f nix/store >/dev/null 2>&1 || true
-rmdir nixos-in-place

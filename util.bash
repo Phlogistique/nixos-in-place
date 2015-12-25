@@ -31,3 +31,22 @@ log_start()
 { printf ">>> %s" "$*"; }
 log_end()
 { printf "%s\n" "$*"; }
+
+on_exit_script() {
+    local script_var=script_$BASH_SUBSHELL
+
+    if [ -z "${!script_var:-}" ]; then
+        trap "eval \"\$${script_var}\"" EXIT
+    fi
+
+    printf -v "$script_var" '%s\n%s' "$*" "${!script_var:-}"
+}
+
+on_exit() {
+    on_exit_script "$(printf '%q ' "$@")"
+}
+
+mount_with_cleanup() {
+    on_exit umount "${!#}"
+    mount "$@"
+}
